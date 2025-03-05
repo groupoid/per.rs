@@ -29,12 +29,12 @@ type term =
   | Snd of term
   | Id of term * term * term
   | Refl of term
-  | Inductive of inductive_def  (* Inductive type D *)
-  | Constr of int * inductive_def * term list  (* j-th constructor of D *)
-  | Elim of inductive_def * term * term list * term  (* Elim D P cases t *)
+  | Inductive of inductive  (* Inductive type D *)
+  | Constr of int * inductive * term list  (* j-th constructor of D *)
+  | Elim of inductive * term * term list * term  (* Elim D P cases t *)
 
 (* Inductive type definition *)
-and inductive_def = {
+and inductive = {
   name : string;                (* e.g., "Nat", "List" *)
   params : (name * term) list;  (* Parameters, e.g., [( "A", Universe 0 )] for List A *)
   level : level;                (* Type level: D : Type i *)
@@ -43,7 +43,7 @@ and inductive_def = {
 }
 
 (* Environment of inductive definitions *)
-type env = (string * inductive_def) list
+type env = (string * inductive) list
 type context = (name * term) list
 
 let empty_env : env = []
@@ -208,7 +208,7 @@ and check (env : env) (ctx : context) (t : term) (ty : term) : unit =
         raise (TypeError "Inferred type does not match expected type")
 
 (* Apply parameters to an inductive type *)
-and apply_inductive (d : inductive_def) (args : term list) : term =
+and apply_inductive (d : inductive) (args : term list) : term =
   if List.length d.params <> List.length args then raise (TypeError "Parameter mismatch");
   let subst_param t = List.fold_left2 (fun acc (n, _) arg -> subst n arg acc) t d.params args
   in Inductive { d with constrs = List.map (fun (j, ty) -> (j, subst_param ty)) d.constrs }
@@ -259,7 +259,6 @@ let rec reduce (env : env) (ctx : context) (t : term) : term =
             | a :: rest_args, [] ->
                 subst_rec_args (App (fn, a)) rest_args [] (pos + 1)
             | [], _ -> fn
-            | _ -> fn
           in
           subst_rec_args cj args rec_args 0
   | Elim (d, p, cases, t') ->
